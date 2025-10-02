@@ -1,26 +1,53 @@
 ﻿<Window x:Class="SnippitReader.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Snippit Reader – Stage 1" Height="520" Width="820">
-    <Grid Margin="12" >
+        Title="Snippit Reader – Stage 1" Height="750" Width="820">
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="521*"/>
+            <ColumnDefinition Width="275*"/>
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Row 0: Buttons -->
             <RowDefinition Height="Auto"/>
+            <!-- Row 1: Status -->
             <RowDefinition Height="*"/>
+            <!-- Row 2: Original Image Preview -->
+            <RowDefinition Height="*"/>
+            <!-- Row 3: Converted Image Preview -->
+            <RowDefinition Height="2*"/>
+            <!-- Row 4: OCR Output -->
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-            <Button x:Name="SnipBtn" Click="SnipBtn_Click" Content="Start Snip (Win+Shift+S)" Padding="12,6"/>
-            <Button x:Name="PasteBtn" Click="PasteBtn_Click" Content="Paste From Clipboard" Padding="12,6" Margin="8,0,0,0"/>
-            <Button x:Name="CopyBtn" Click="CopyBtn_Click" Content="Copy Image" Padding="12,6" Margin="8,0,0,0"/>
+        <!-- Row 0: Snip Button -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Grid.ColumnSpan="2">
+            <Button x:Name="SnipBtn" Click="SnipBtn_Click" 
+                    Content="Start Snip (Win+Shift+S)" Padding="12,6"/>
         </StackPanel>
 
-        <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,0,0,8" />
+        <!-- Row 1: Status Text -->
+        <TextBlock x:Name="StatusText" Grid.Row="1" Margin="0,0,0,8" Grid.ColumnSpan="2" />
 
-        <Border Grid.Row="2" BorderBrush="#DDD" BorderThickness="1">
+        <!-- Row 2: Original Image Preview -->
+        <Border Grid.Row="2" BorderBrush="#DDD" BorderThickness="1" Margin="0,0,0,8" Grid.ColumnSpan="2">
             <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                 <Image x:Name="Preview" Stretch="None"/>
             </ScrollViewer>
         </Border>
+        <!-- Row 4: OCR Output -->
+        <Border Grid.Row="3" BorderBrush="#AAA" BorderThickness="1" Margin="0,8,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <TextBox x:Name="OcrOutput"
+                         Text="(OCR text will appear here)"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         IsReadOnly="True"
+                         Background="#F9F9F9"
+                         Padding="6"/>
+            </ScrollViewer>
+        </Border>
+
+        
     </Grid>
 </Window>
