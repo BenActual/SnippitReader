@@ -1,21 +1,26 @@
 ﻿using System;
 using System.Diagnostics;
-using System.IO;
+using System.IO;                                  // MemoryStream
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
-using System.IO;                                  // MemoryStream
-using static System.IO.WindowsRuntimeStreamExtensions;
-using Windows.Storage.Streams;                    // IRandomAccessStream
 using Windows.Globalization;
+using Windows.Media.Core;
+using Windows.Media.Ocr;
+using Windows.Media.Playback;
+
+//tts
+using Windows.Media.SpeechSynthesis;
 
 
+using Windows.Storage.Streams;                    // IRandomAccessStream
+using static System.IO.WindowsRuntimeStreamExtensions;
+using WinImaging = Windows.Graphics.Imaging;
 // Alias namespaces so we can disambiguate between WPF and WinRT imaging
 using WpfImaging = System.Windows.Media.Imaging;
-using WinImaging = Windows.Graphics.Imaging;
-using Windows.Media.Ocr;
 
 
 
@@ -38,7 +43,11 @@ namespace SnippitReader
 
         // Holds the last captured or pasted image
         private BitmapSource? _lastImage;
-       
+
+        // Add inside class MainWindow (fields region)
+        private Windows.Media.Playback.MediaPlayer? _ttsPlayer;
+
+
 
         // Updates the status text in the UI with a timestamp and a message
         private void Status(string msg) => StatusText.Text = $"[{DateTime.Now:T}] {msg}";
@@ -47,9 +56,6 @@ namespace SnippitReader
 
         // Called when the "Snip" button is clicked
         private async void SnipBtn_Click(object sender, RoutedEventArgs e) => await StartSnipAsync();
-
-        // Starts the snipping process by calling the Windows screen clipping tool
-
 
         // NEW: WinRT SoftwareBitmap converted from _lastImage (ready for OCR)
         private WinImaging.SoftwareBitmap? _lastSoftwareBitmap;
@@ -95,7 +101,15 @@ namespace SnippitReader
                 // Show OCR result in UI
                 OcrOutput.Text = recognizedText;
 
+                // Status
                 Status(string.IsNullOrWhiteSpace(recognizedText) ? "No text detected." : "OCR complete.");
+
+                // TTS
+                await PlayTtsAsync(recognizedText, speakingRate: 0, volume: 1.0);
+
+
+
+
             }
             catch (Exception ex)
             {
@@ -105,6 +119,60 @@ namespace SnippitReader
 
 
         // ===== Helpers =====
+        private async Task PlayTtsAsync(string text, double speakingRate = 0, double volume = 1.0)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return;
+
+            var synth = new Windows.Media.SpeechSynthesis.SpeechSynthesizer();
+
+            // Try simple property first (available on newer SDKs)
+            var canUseOptionsRate = false;
+            try
+            {
+                synth.Options.SpeakingRate = speakingRate = 1.5; // -10..+10 typical (0 = normal)
+                canUseOptionsRate = true;
+            }
+            catch
+            {
+                // Fallback to SSML below if the property isn’t available
+            }
+
+            Windows.Media.SpeechSynthesis.SpeechSynthesisStream stream;
+
+            if (!canUseOptionsRate)
+            {
+                // Fallback: control rate via SSML prosody
+                string ssml = $@"
+                <speak version='1.0' xml:lang='en-US'>
+                     <prosody rate='{speakingRate:+0;-0;0}'>
+                       {System.Security.SecurityElement.Escape(text)}
+                  </prosody>
+                </speak>";
+                stream = await synth.SynthesizeSsmlToStreamAsync(ssml);
+            }
+            else
+            {
+                stream = await synth.SynthesizeTextToStreamAsync(text);
+            }
+
+            // Start from the beginning
+            stream.Seek(0);
+
+            // Keep player alive at class scope
+            _ttsPlayer?.Dispose();
+            _ttsPlayer = new Windows.Media.Playback.MediaPlayer
+            {
+                AudioCategory = Windows.Media.Playback.MediaPlayerAudioCategory.Speech,
+                Volume = Math.Clamp(volume, 0.0, 1.0)  // 0..1
+            };
+
+            _ttsPlayer.Source = Windows.Media.Core.MediaSource.CreateFromStream(stream, stream.ContentType);
+            _ttsPlayer.Play();
+        }
+
+
+
         private static BitmapSource SoftwareBitmapToBitmapSource(WinImaging.SoftwareBitmap sbmp)
         {
             using var ms = new MemoryStream();
